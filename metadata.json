@@ -1,0 +1,8 @@
+{
+  "name": "LLMs from Scratch - Interactive Workbench",
+  "description": "Interactive React application and workbench for 'Build a Large Language Model (From Scratch)' covering tokenization, attention mechanisms, GPT architecture, KV-cache, pretraining generation, text classification, and instruction fine-tuning.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

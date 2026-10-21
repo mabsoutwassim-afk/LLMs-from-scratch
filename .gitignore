@@ -172,6 +172,8 @@ ch0?/0?_user_interface/chainlit.md
 ch0?/0?_user_interface/.files
 *.lock
 
+node_modules/
+
 # Temporary and OS-related files
 temp
 chainlit.md

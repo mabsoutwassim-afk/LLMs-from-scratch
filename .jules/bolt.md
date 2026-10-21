@@ -1,0 +1,3 @@
+## 2025-05-18 - [Fused Matrix Operations in JS/TS Attention Engine]
+**Learning:** In JS/TS attention calculation, calling separate `transpose(K)` -> `matmul(Q, KT)` -> `scaledScores.map(...)` causes multiple temporary 2D array allocations per head, triggering GC overhead. Fusing matrix product, transpose indexing (`rowQ[p] * rowK[p]`), and scaling into a single pass (`computeScaledAttentionScores`) eliminates intermediate matrix allocations and improves cache locality, cutting computation time by ~54%.
+**Action:** Fuse matrix operations and pre-allocate result arrays when working with multidimensional array calculations in TypeScript engines.

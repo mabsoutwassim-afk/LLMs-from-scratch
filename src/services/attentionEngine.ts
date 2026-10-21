@@ -16,59 +16,99 @@ function pseudoRandomMatrix(rows: number, cols: number, seed: number): number[][
   return matrix;
 }
 
-// Matrix multiplication A (n x k) * B (k x m)
+/**
+ * Matrix multiplication A (n x k) * B (k x m)
+ * Performance Optimization: Direct array allocation avoids Array.from zero-fill allocations.
+ */
 function matmul(A: number[][], B: number[][]): number[][] {
   const n = A.length;
   const k = A[0].length;
   const m = B[0].length;
-  const res: number[][] = Array.from({ length: n }, () => Array(m).fill(0));
+  const res: number[][] = new Array(n);
 
   for (let i = 0; i < n; i++) {
+    const rowA = A[i];
+    const rowRes = new Array(m);
     for (let j = 0; j < m; j++) {
       let sum = 0;
       for (let p = 0; p < k; p++) {
-        sum += A[i][p] * B[p][j];
+        sum += rowA[p] * B[p][j];
       }
-      res[i][j] = sum;
+      rowRes[j] = sum;
     }
+    res[i] = rowRes;
   }
   return res;
 }
 
-// Transpose B (r x c) -> (c x r)
-function transpose(B: number[][]): number[][] {
-  const r = B.length;
-  const c = B[0].length;
-  const T: number[][] = Array.from({ length: c }, () => Array(r).fill(0));
-  for (let i = 0; i < r; i++) {
-    for (let j = 0; j < c; j++) {
-      T[j][i] = B[i][j];
+/**
+ * Computes scaled dot-product scores (Q * K^T) / scaleFactor directly in a single pass.
+ * Performance Optimization:
+ * 1. Eliminates matrix transposition allocation (transpose(K)).
+ * 2. Accesses Q and K rows contiguously in memory for faster CPU cache hits.
+ * 3. Fuses matrix product and scaling step to avoid an extra 2D array allocation.
+ */
+function computeScaledAttentionScores(Q: number[][], K: number[][], scaleFactor: number): number[][] {
+  const n = Q.length;
+  const k = Q[0].length;
+  const m = K.length;
+  const res: number[][] = new Array(n);
+
+  for (let i = 0; i < n; i++) {
+    const rowQ = Q[i];
+    const rowRes = new Array(m);
+    for (let j = 0; j < m; j++) {
+      const rowK = K[j];
+      let sum = 0;
+      for (let p = 0; p < k; p++) {
+        sum += rowQ[p] * rowK[p];
+      }
+      rowRes[j] = sum / scaleFactor;
     }
+    res[i] = rowRes;
   }
-  return T;
+  return res;
 }
 
-// Softmax with numeric stability
+/**
+ * Softmax with numeric stability.
+ * Performance Optimization: Single pre-allocated array with in-place multiplication by reciprocal sum,
+ * eliminating extra array allocation per row from .map().
+ */
 function softmax(row: number[], maskIndices?: boolean[]): number[] {
+  const len = row.length;
   let max = -Infinity;
-  for (let i = 0; i < row.length; i++) {
+
+  for (let i = 0; i < len; i++) {
     if (maskIndices && maskIndices[i]) continue;
     if (row[i] > max) max = row[i];
   }
 
   let sum = 0;
-  const expRow: number[] = [];
-  for (let i = 0; i < row.length; i++) {
+  const result: number[] = new Array(len);
+
+  for (let i = 0; i < len; i++) {
     if (maskIndices && maskIndices[i]) {
-      expRow.push(0);
+      result[i] = 0;
     } else {
       const expVal = Math.exp(row[i] - max);
-      expRow.push(expVal);
+      result[i] = expVal;
       sum += expVal;
     }
   }
 
-  return expRow.map(v => (sum > 0 ? v / sum : 0));
+  if (sum > 0) {
+    const invSum = 1 / sum;
+    for (let i = 0; i < len; i++) {
+      result[i] *= invSum;
+    }
+  } else {
+    for (let i = 0; i < len; i++) {
+      result[i] = 0;
+    }
+  }
+
+  return result;
 }
 
 export interface AttentionComputation {
@@ -125,24 +165,18 @@ export function computeMultiHeadAttention(
       sampleV = V;
     }
 
-    // Dot product Q * K^T
-    const KT = transpose(K);
-    const rawScores = matmul(Q, KT);
-
-    // Scale by sqrt(dK)
+    // Scaled dot product Q * K^T / sqrt(dK) computed in a single cache-efficient pass
     const scaleFactor = Math.sqrt(dK);
-    const scaledScores: number[][] = rawScores.map(row =>
-      row.map(val => val / scaleFactor)
-    );
+    const scaledScores = computeScaledAttentionScores(Q, K, scaleFactor);
 
     // Apply causal mask and softmax
-    const attentionWeights: number[][] = [];
+    const attentionWeights: number[][] = new Array(seqLen);
     for (let i = 0; i < seqLen; i++) {
-      const maskFlags: boolean[] = [];
+      const maskFlags: boolean[] = new Array(seqLen);
       for (let j = 0; j < seqLen; j++) {
-        maskFlags.push(causal && j > i);
+        maskFlags[j] = causal && j > i;
       }
-      attentionWeights.push(softmax(scaledScores[i], maskFlags));
+      attentionWeights[i] = softmax(scaledScores[i], maskFlags);
     }
 
     heads.push({

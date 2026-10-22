@@ -12,37 +12,45 @@ import {
   Layers
 } from 'lucide-react';
 import { ChapterId } from '../types';
+import { Language, TRANSLATIONS } from '../data/translations';
+import { LanguageSelector } from './LanguageSelector';
 
 interface NavbarProps {
   currentTab: ChapterId;
   onSelectTab: (tab: ChapterId) => void;
   onOpenApiModal: () => void;
+  language: Language;
+  onSelectLanguage: (lang: Language) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   onSelectTab,
   onOpenApiModal,
+  language,
+  onSelectLanguage,
 }) => {
+  const tNav = TRANSLATIONS[language].nav;
+
   const navItems = [
-    { id: 'overview' as ChapterId, label: 'Overview', icon: BookOpen },
-    { id: 'ch02-tokenization' as ChapterId, label: 'Ch 2: BPE & Tokens', icon: Boxes },
-    { id: 'ch03-attention' as ChapterId, label: 'Ch 3: Attention', icon: Eye },
-    { id: 'ch04-architecture' as ChapterId, label: 'Ch 4: Architecture', icon: Layers },
-    { id: 'kv-cache' as ChapterId, label: 'KV-Cache Lab', icon: Zap },
-    { id: 'ch05-pretraining' as ChapterId, label: 'Ch 5: Generator', icon: Sparkles },
-    { id: 'ch06-classification' as ChapterId, label: 'Ch 6: Classifier', icon: CheckSquare },
-    { id: 'ch07-instructions' as ChapterId, label: 'Ch 7: Instructions & DPO', icon: MessageSquare },
+    { id: 'overview' as ChapterId, label: tNav.overview, icon: BookOpen },
+    { id: 'ch02-tokenization' as ChapterId, label: tNav.ch02, icon: Boxes },
+    { id: 'ch03-attention' as ChapterId, label: tNav.ch03, icon: Eye },
+    { id: 'ch04-architecture' as ChapterId, label: tNav.ch04, icon: Layers },
+    { id: 'kv-cache' as ChapterId, label: tNav.kvCache, icon: Zap },
+    { id: 'ch05-pretraining' as ChapterId, label: tNav.ch05, icon: Sparkles },
+    { id: 'ch06-classification' as ChapterId, label: tNav.ch06, icon: CheckSquare },
+    { id: 'ch07-instructions' as ChapterId, label: tNav.ch07, icon: MessageSquare },
   ];
 
   return (
     <header className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 gap-3">
           {/* Logo & title */}
           <div 
             onClick={() => onSelectTab('overview')}
-            className="flex items-center gap-3 cursor-pointer group"
+            className="flex items-center gap-3 cursor-pointer group shrink-0"
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-cyan-400 p-0.5 flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
               <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
@@ -63,23 +71,30 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Action buttons on the right */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Language dropdown in Navbar */}
+            <LanguageSelector
+              currentLanguage={language}
+              onSelectLanguage={onSelectLanguage}
+              variant="navbar"
+            />
+
             <button
               onClick={onOpenApiModal}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-300 bg-emerald-950/40 border border-emerald-800/60 rounded-lg hover:bg-emerald-900/40 transition-colors"
               title="Test original Vercel Python API health endpoint"
             >
               <Activity className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden md:inline">API Status</span>: <span className="text-emerald-400 font-mono">ok</span>
+              <span className="hidden md:inline">{tNav.apiStatus}</span>: <span className="text-emerald-400 font-mono">ok</span>
             </button>
 
             <a
               href="https://github.com/rasbt/LLMs-from-scratch"
               target="_blank"
               rel="noreferrer"
-              className="text-xs text-slate-400 hover:text-slate-200 transition-colors px-2 py-1 rounded"
+              className="text-xs text-slate-400 hover:text-slate-200 transition-colors px-2 py-1 rounded hidden lg:inline-block"
             >
-              GitHub Source
+              {tNav.githubSource}
             </a>
           </div>
         </div>

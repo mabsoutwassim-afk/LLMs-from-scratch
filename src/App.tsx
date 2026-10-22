@@ -10,24 +10,40 @@ import { ClassificationPlayground } from './components/ClassificationPlayground'
 import { InstructionChat } from './components/InstructionChat';
 import { VercelApiModal } from './components/VercelApiModal';
 import { ChapterId } from './types';
-import { BookOpen, Cpu, Heart, Code2 } from 'lucide-react';
+import { Language, LANGUAGES } from './data/translations';
+import { Cpu, Code2 } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<ChapterId>('overview');
+  const [language, setLanguage] = useState<Language>('en');
   const [isApiModalOpen, setIsApiModalOpen] = useState<boolean>(false);
 
+  const selectedLang = LANGUAGES.find((l) => l.code === language) || LANGUAGES[0];
+  const isRtl = selectedLang.dir === 'rtl';
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-blue-600 selection:text-white">
+    <div
+      dir={isRtl ? 'rtl' : 'ltr'}
+      className="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-blue-600 selection:text-white"
+    >
       {/* Top Navigation */}
       <Navbar
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         onOpenApiModal={() => setIsApiModalOpen(true)}
+        language={language}
+        onSelectLanguage={setLanguage}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentTab === 'overview' && <Overview onSelectTab={setCurrentTab} />}
+        {currentTab === 'overview' && (
+          <Overview
+            onSelectTab={setCurrentTab}
+            language={language}
+            onSelectLanguage={setLanguage}
+          />
+        )}
         {currentTab === 'ch02-tokenization' && <TokenizationPlayground />}
         {currentTab === 'ch03-attention' && <AttentionVisualizer />}
         {currentTab === 'ch04-architecture' && <ArchitectureExplorer />}

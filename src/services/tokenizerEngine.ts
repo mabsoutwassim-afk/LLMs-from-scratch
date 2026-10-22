@@ -108,6 +108,10 @@ function hashToTokenId(str: string): number {
   return Math.abs(hash % 50255) + 100;
 }
 
+// Performance Optimization: Single module-level regex and TextEncoder instances avoid allocation overhead on every tokenization pass.
+const BPE_REGEX = /'s|'t|'re|'ve|'m|'ll|'d| ?[a-zA-Z]+| ?[0-9]+| ?[^\s\w]+|\s+/g;
+const TEXT_ENCODER = new TextEncoder();
+
 /**
  * Tokenize input text using GPT-2 regex-based BPE split simulation
  * Regex in GPT-2: 's|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+
@@ -115,8 +119,7 @@ function hashToTokenId(str: string): number {
 export function tokenizeText(text: string): TokenItem[] {
   if (!text) return [];
 
-  const regex = /'s|'t|'re|'ve|'m|'ll|'d| ?[a-zA-Z]+| ?[0-9]+| ?[^\s\w]+|\s+/g;
-  const matches = text.match(regex) || [text];
+  const matches = text.match(BPE_REGEX) || [text];
 
   return matches.map((tokenStr, idx) => {
     let id: number;
@@ -128,9 +131,8 @@ export function tokenizeText(text: string): TokenItem[] {
       id = hashToTokenId(tokenStr);
     }
 
-    // Convert string to UTF-8 byte array
-    const encoder = new TextEncoder();
-    const bytes = Array.from(encoder.encode(tokenStr));
+    // Convert string to UTF-8 byte array using shared module-level TextEncoder
+    const bytes = Array.from(TEXT_ENCODER.encode(tokenStr));
 
     return {
       id,
@@ -154,6 +156,10 @@ export interface DataLoaderBatch {
   targetTokens: string[];
 }
 
+/**
+ * Performance Optimization: Pre-allocates fixed-length batch arrays and fills them in a single pass,
+ * eliminating 4 intermediate .map() call allocations per sliding window step.
+ */
 export function generateDataLoaderBatches(
   tokens: TokenItem[],
   contextSize: number = 4,
@@ -164,15 +170,26 @@ export function generateDataLoaderBatches(
 
   let step = 1;
   for (let i = 0; i <= tokens.length - contextSize - 1; i += stride) {
-    const inputSlice = tokens.slice(i, i + contextSize);
-    const targetSlice = tokens.slice(i + 1, i + contextSize + 1);
+    const inputIds: number[] = new Array(contextSize);
+    const targetIds: number[] = new Array(contextSize);
+    const inputTokens: string[] = new Array(contextSize);
+    const targetTokens: string[] = new Array(contextSize);
+
+    for (let j = 0; j < contextSize; j++) {
+      const inTok = tokens[i + j];
+      const tgtTok = tokens[i + 1 + j];
+      inputIds[j] = inTok.id;
+      targetIds[j] = tgtTok.id;
+      inputTokens[j] = inTok.token;
+      targetTokens[j] = tgtTok.token;
+    }
 
     batches.push({
       step,
-      inputIds: inputSlice.map(t => t.id),
-      targetIds: targetSlice.map(t => t.id),
-      inputTokens: inputSlice.map(t => t.token),
-      targetTokens: targetSlice.map(t => t.token),
+      inputIds,
+      targetIds,
+      inputTokens,
+      targetTokens,
     });
     step++;
     if (batches.length >= 10) break; // Limit preview batches
@@ -248,12 +265,13 @@ export function simulateBPETraining(corpus: string[], numMerges: number = 5): BP
       return newList;
     });
 
+    // Performance Optimization: Direct array shallow copies (.map(w => w.slice())) avoid JSON string serialization and parse overhead.
     steps.push({
       iteration: iter,
       bestPair,
       frequency: maxCount,
       newVocabularyEntry: merged,
-      resultingTokens: JSON.parse(JSON.stringify(tokenizedCorpus)),
+      resultingTokens: tokenizedCorpus.map(wordList => wordList.slice()),
     });
   }
 

@@ -325,6 +325,9 @@ venv.bak/
 # mkdocs documentation
 /site
 
+# TypeScript build info
+*.tsbuildinfo
+
 # mypy
 .mypy_cache/
 .dmypy.json
